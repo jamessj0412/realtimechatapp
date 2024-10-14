@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Chat App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .chat-container {
+            width: 400px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #chatOutput {
+            border: 1px solid #ddd;
+            height: 300px;
+            overflow-y: scroll;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #f9f9f9;
+        }
+
+        #messageInput {
+            width: calc(100% - 60px);
+            padding: 10px;
+        }
+
+        #roomInput {
+            width: calc(100% - 120px);
+            padding: 10px;
+        }
+
+        button {
+            padding: 10px;
+            cursor: pointer;
+            background-color: #28a745;
+            border: none;
+            color: white;
+            margin-left: 5px;
+            border-radius: 5px;
+        }
+
+        .message {
+            margin: 5px 0;
+        }
+
+        .message.user {
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .message.system {
+            color: #555;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chat-container">
+        <h1>Real-Time Chat</h1>
+        <div id="userSection">
+            <label>Enter your username:</label>
+            <input type="text" id="usernameInput" placeholder="Username">
+            <button onclick="connectUser()">Join</button>
+        </div>
+        <div id="roomSection" style="display:none;">
+            <label>Enter Room:</label>
+            <input type="text" id="roomInput" placeholder="Room">
+            <button onclick="joinRoom()">Join Room</button>
+        </div>
+        <div id="chatSection" style="display:none;">
+            <div id="chatOutput"></div>
+            <input type="text" id="messageInput" placeholder="Type your message">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        let socket;
+        let username;
+        let room;
+
+        function connectUser() {
+            username = document.getElementById('usernameInput').value.trim();
+            if (username) {
+                socket = new WebSocket('ws://localhost:8080');
+
+                socket.onopen = function (event) {
+                    document.getElementById('userSection').style.display = 'none';
+                    document.getElementById('roomSection').style.display = 'block';
+                    alert('Connected as ' + username);
+                };
+
+                socket.onmessage = function (event) {
+                    const chatOutput = document.getElementById('chatOutput');
+                    const message = JSON.parse(event.data);
+
+                    let messageElement = document.createElement('div');
+                    messageElement.classList.add('message');
+                    if (message.type === 'system') {
+                        messageElement.classList.add('system');
+                        messageElement.innerHTML = message.content;
+                    } else {
+                        messageElement.classList.add(message.sender === username ? 'user' : 'other');
+                        messageElement.innerHTML = `<strong>${message.sender}:</strong> ${message.content}`;
+                    }
+
+                    chatOutput.appendChild(messageElement);
+                    chatOutput.scrollTop = chatOutput.scrollHeight;
+                };
+
+                socket.onclose = function () {
+                    alert('Disconnected from server');
+                };
+            } else {
+                alert('Please enter a username.');
+            }
+        }
+
+        function joinRoom() {
+            room = document.getElementById('roomInput').value.trim();
+            if (room) {
+                socket.send(JSON.stringify({
+                    type: 'join',
+                    user: username,
+                    room: room
+                }));
+
+                document.getElementById('roomSection').style.display = 'none';
+                document.getElementById('chatSection').style.display = 'block';
+            } else {
+                alert('Please enter a room name.');
+            }
+        }
+
+        function sendMessage() {
+            const message = document.getElementById('messageInput').value.trim();
+            if (message) {
+                socket.send(JSON.stringify({
+                    type: 'message',
+                    user: username,
+                    room: room,
+                    content: message
+                }));
+
+                document.getElementById('messageInput').value = '';
+            }
+        }
+    </script>
+</body>
+
+</html>
